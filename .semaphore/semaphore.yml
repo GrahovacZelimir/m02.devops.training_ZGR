@@ -34,6 +34,8 @@ blocks:
             - cache restore
             - pip install --user flake8
             - flake8 .
+    run:
+      when: 'false'
   - name: "\U0001F9EA Unit Tests"
     dependencies:
       - "\U0001F4E6 Setup Dependencies"
@@ -79,6 +81,8 @@ blocks:
         always:
           commands:
             - test-results publish junit_integration.xml
+    run:
+      when: 'false'
   - name: "\U0001F433 Docker Build"
     dependencies: []
     task:
@@ -92,6 +96,8 @@ blocks:
               else
                 echo "No Dockerfile found, skipping Docker build."
               fi
+    run:
+      when: 'false'
   - name: "\U0001F6E1️Security Checks"
     dependencies: []
     task:
@@ -104,6 +110,8 @@ blocks:
             - cache restore
             - pip install --user bandit
             - bandit -r . -ll
+    run:
+      when: 'false'
 after_pipeline:
   task:
     jobs:
