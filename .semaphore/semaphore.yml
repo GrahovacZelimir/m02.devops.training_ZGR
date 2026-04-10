@@ -1,0 +1,31 @@
+version: v1.0
+name: "\U0001F3AF Simple CI Pipeline"
+agent:
+  machine:
+    type: a2-standard-4
+    os_image: macos-xcode26
+fail_fast:
+  stop:
+    when: branch != 'main'
+auto_cancel:
+  running:
+    when: branch != 'main'
+  queued:
+    when: branch = 'main'
+blocks:
+  - name: 'Install dependencies '
+    dependencies: []
+    task:
+      jobs:
+        - name: "\U0001F7E2 Run Tests"
+          commands:
+            - pip install pytest requests flask coverage locust
+  - name: 'Unit tests '
+    dependencies:
+      - 'Install dependencies '
+    task:
+      jobs:
+        - name: "\U0001F4E6 Deploy to Production"
+          commands:
+            - cd 1-tdd && python -m pytest test_factorial.py -v
+            - cd 2-unit-testing && python -m pytest test_math_sum.py -v
