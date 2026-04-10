@@ -1,31 +1,112 @@
 version: v1.0
-name: "\U0001F3AF Simple CI Pipeline"
+name: "\U0001F40D Python CI/CD Pipeline"
 agent:
   machine:
-    type: a2-standard-4
-    os_image: macos-xcode26
-fail_fast:
-  stop:
-    when: branch != 'main'
+    type: f1-standard-2
+    os_image: ubuntu2404
 auto_cancel:
-  running:
-    when: branch != 'main'
   queued:
-    when: branch = 'main'
+    when: 'true'
+fail_fast:
+  cancel:
+    when: branch != 'main'
+global_job_config:
+  prologue:
+    commands:
+      - checkout
 blocks:
-  - name: 'Install dependencies '
+  - name: "\U0001F4E6 Setup Dependencies"
     dependencies: []
     task:
       jobs:
-        - name: "\U0001F7E2 Run Tests"
+        - name: "\U0001F4E6 Install dependencies"
           commands:
             - pip install pytest requests flask coverage locust
-  - name: 'Unit tests '
-    dependencies:
-      - 'Install dependencies '
+  - name: "\U0001F50D Lint"
+    dependencies: []
     task:
       jobs:
-        - name: "\U0001F4E6 Deploy to Production"
+        - name: "\U0001F50D flake8 lint"
           commands:
-            - cd 1-tdd && python -m pytest test_factorial.py -v
-            - cd 2-unit-testing && python -m pytest test_math_sum.py -v
+            - echo "Running flake8 lint…"
+            - 'export PATH="$HOME/.local/bin:$PATH"'
+            - mkdir -p .pip_cache
+            - cache restore
+            - pip install --user flake8
+            - flake8 .
+  - name: "\U0001F9EA Unit Tests"
+    dependencies:
+      - "\U0001F4E6 Setup Dependencies"
+    task:
+      jobs:
+        - name: "\U0001F9EA pytest unit"
+          commands:
+            - echo "Running unit tests with pytest…"
+            - sem-version python $PYTHON_VERSION
+            - 'export PATH="$HOME/.local/bin:$PATH"'
+            - mkdir -p .pip_cache
+            - cache restore
+            - pytest --maxfail=1 --disable-warnings -q --junitxml=junit_unit.xml tests
+          matrix:
+            - env_var: PYTHON_VERSION
+              values:
+                - '3.10'
+                - '3.11'
+                - '3.12'
+      epilogue:
+        always:
+          commands:
+            - test-results publish junit_unit.xml
+  - name: "\U0001F517 Integration Tests"
+    dependencies: []
+    task:
+      jobs:
+        - name: "\U0001F517 pytest integration"
+          commands:
+            - echo "Running integration tests with pytest…"
+            - sem-version python $PYTHON_VERSION
+            - 'export PATH="$HOME/.local/bin:$PATH"'
+            - mkdir -p .pip_cache
+            - cache restore
+            - pytest --maxfail=1 --disable-warnings -q --junitxml=junit_integration.xml tests/integration
+          matrix:
+            - env_var: PYTHON_VERSION
+              values:
+                - '3.10'
+                - '3.11'
+                - '3.12'
+      epilogue:
+        always:
+          commands:
+            - test-results publish junit_integration.xml
+  - name: "\U0001F433 Docker Build"
+    dependencies: []
+    task:
+      jobs:
+        - name: "\U0001F433 Build image"
+          commands:
+            - echo "Building Docker image…"
+            - |
+              if [ -f Dockerfile ]; then
+                docker build -t my-python-app:${SEMAPHORE_GIT_BRANCH:-latest} .
+              else
+                echo "No Dockerfile found, skipping Docker build."
+              fi
+  - name: "\U0001F6E1️Security Checks"
+    dependencies: []
+    task:
+      jobs:
+        - name: "\U0001F6E1️ Bandit scan"
+          commands:
+            - echo "Running Bandit security scan…"
+            - 'export PATH="$HOME/.local/bin:$PATH"'
+            - mkdir -p .pip_cache
+            - cache restore
+            - pip install --user bandit
+            - bandit -r . -ll
+after_pipeline:
+  task:
+    jobs:
+      - name: "\U0001F4CA Merge reports"
+        commands:
+          - test-results gen-pipeline-report
