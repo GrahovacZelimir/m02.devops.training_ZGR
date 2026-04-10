@@ -1,17 +1,21 @@
+# jednostavan in-memory datastore
 database = {}
 
 
 def store_value(key, value):
-    raise NotImplementedError("Implement store_value using TDD")
+    database[key] = value
 
 
 def get_value(key):
-    raise NotImplementedError("Implement get_value using TDD")
+    return database.get(key, None)
 
 
 def delete_value(key):
-    raise NotImplementedError("Implement delete_value using TDD")
+    if key in database:
+        del database[key]
+        return True
+    return False
 
 
 def list_keys():
-    raise NotImplementedError("Implement list_keys using TDD")
+    return list(database.keys())

@@ -1,14 +1,27 @@
 def add(a, b):
-    raise NotImplementedError("Implement this function using TDD")
-
+    return a+b
 
 def subtract(a, b):
-    raise NotImplementedError("Implement this function using TDD")
-
+    return a-b
 
 def multiply(a, b):
-    raise NotImplementedError("Implement this function using TDD")
-
+    return a*b
 
 def divide(a, b):
-    raise NotImplementedError("Implement this function using TDD")
+    if b == 0:
+        raise ValueError("Dijeljenje sa nulom nije dozvoljeno")
+    return a/b
+
+def power(a, b):
+    if b < 0:
+        raise ValueError("Negative exponents are not allowed")
+    result = 1
+    for _ in range(b):
+        result *= a
+    return result
+
+
+def modulo(a, b):
+    if b == 0:
+        raise ValueError("Division by zero is not allowed")
+    return a % b

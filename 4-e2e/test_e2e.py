@@ -5,6 +5,7 @@ BASE_URL = "http://127.0.0.1:5000"
 
 
 class TestEndToEnd(unittest.TestCase):
+    
     def test_home_page(self):
         response = requests.get(f"{BASE_URL}/")
         self.assertEqual(response.status_code, 200)
@@ -38,7 +39,7 @@ class TestEndToEnd(unittest.TestCase):
         response = requests.get(f"{BASE_URL}/health")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
-
+    
 
 if __name__ == "__main__":
     unittest.main()
