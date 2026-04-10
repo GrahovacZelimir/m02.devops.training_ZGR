@@ -43,12 +43,8 @@ blocks:
       jobs:
         - name: "\U0001F9EA pytest unit"
           commands:
-            - echo "Running unit tests with pytest…"
-            - sem-version python $PYTHON_VERSION
-            - 'export PATH="$HOME/.local/bin:$PATH"'
-            - mkdir -p .pip_cache
-            - cache restore
-            - pytest --maxfail=1 --disable-warnings -q --junitxml=junit_unit.xml tests
+            - cd 1-tdd && python -m pytest test_factorial.py -v
+            - cd 2-unit-testing && python -m pytest test_math_sum.py -v
           matrix:
             - env_var: PYTHON_VERSION
               values:
