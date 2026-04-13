@@ -58,10 +58,6 @@ blocks:
             - cd ..
             - 'cd 2-unit-testing '
             - python -m pytest test_math_sum.py -v
-      epilogue:
-        always:
-          commands:
-            - test-results publish junit_unit.xml
   - name: E2E tests
     dependencies:
       - Integration tests
