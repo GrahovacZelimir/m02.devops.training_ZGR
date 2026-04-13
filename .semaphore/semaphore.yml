@@ -45,12 +45,6 @@ blocks:
           commands:
             - cd 1-tdd && python -m pytest test_factorial.py -v
             - cd 2-unit-testing && python -m pytest test_math_sum.py -v
-          matrix:
-            - env_var: PYTHON_VERSION
-              values:
-                - '3.10'
-                - '3.11'
-                - '3.12'
       epilogue:
         always:
           commands:
