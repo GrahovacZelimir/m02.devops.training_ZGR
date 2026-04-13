@@ -21,19 +21,25 @@ blocks:
       jobs:
         - name: "\U0001F4E6 Install dependencies"
           commands:
-            - pip install pytest requests flask coverage locust
-  - name: "\U0001F50D Lint"
-    dependencies: []
+            - echo "Installing dependencies...."
+            - pip install pytest requests flask coverage locust flask-limiter
+            - cache store
+  - name: Integration tests
+    dependencies:
+      - "\U0001F9EA Unit Tests"
     task:
       jobs:
-        - name: "\U0001F50D flake8 lint"
+        - name: Run tests
           commands:
-            - echo "Running flake8 lint…"
-            - 'export PATH="$HOME/.local/bin:$PATH"'
-            - mkdir -p .pip_cache
             - cache restore
-            - pip install --user flake8
-            - flake8 .
+            - 'cd 3-integration-testing '
+            - 'python -m pytest test_integration.py -v '
+            - cd ..
+            - 'cd 6-mocking '
+            - 'python -m pytest test_weather_service.py -v '
+            - cd ..
+            - 'cd 10-database-testing '
+            - python -m pytest test_database.py -v
     run:
       when: 'false'
   - name: "\U0001F9EA Unit Tests"
@@ -43,65 +49,112 @@ blocks:
       jobs:
         - name: "\U0001F9EA pytest unit"
           commands:
-            - cd 1-tdd && python -m pytest test_factorial.py -v
-            - cd 2-unit-testing && python -m pytest test_math_sum.py -v
+            - cache restore
+            - 'cd 1-tdd '
+            - 'python -m pytest test_factorial.py -v '
+            - python -m pytest test_fibonacci.py -v
+            - cd ..
+            - 'cd 2-unit-testing '
+            - python -m pytest test_math_sum.py -v
       epilogue:
         always:
           commands:
             - test-results publish junit_unit.xml
-  - name: "\U0001F517 Integration Tests"
-    dependencies: []
+  - name: E2E tests
+    dependencies:
+      - Integration tests
     task:
       jobs:
-        - name: "\U0001F517 pytest integration"
+        - name: Run tests
           commands:
-            - echo "Running integration tests with pytest…"
-            - sem-version python $PYTHON_VERSION
-            - 'export PATH="$HOME/.local/bin:$PATH"'
-            - mkdir -p .pip_cache
             - cache restore
-            - pytest --maxfail=1 --disable-warnings -q --junitxml=junit_integration.xml tests/integration
-          matrix:
-            - env_var: PYTHON_VERSION
-              values:
-                - '3.10'
-                - '3.11'
-                - '3.12'
+            - 'cd 4-e2e '
+            - pip install -r requirements.txt
+            - pip install flask_limiter
+            - nohup python app.py &
+            - '# wait until app is ready - running state'
+            - 'until curl -s http://127.0.0.1:5000/health; do sleep 1; done'
+            - python -m pytest test_e2e.py -v
       epilogue:
         always:
           commands:
             - test-results publish junit_integration.xml
     run:
       when: 'false'
-  - name: "\U0001F433 Docker Build"
-    dependencies: []
+  - name: Performance tests
+    dependencies:
+      - E2E tests
+      - "\U0001F4E6 Setup Dependencies"
     task:
       jobs:
-        - name: "\U0001F433 Build image"
+        - name: Run tests
           commands:
-            - echo "Building Docker image…"
-            - |
-              if [ -f Dockerfile ]; then
-                docker build -t my-python-app:${SEMAPHORE_GIT_BRANCH:-latest} .
-              else
-                echo "No Dockerfile found, skipping Docker build."
-              fi
+            - 'set -e  # fail fast if anything breaks'
+            - '#export DISABLE_RATE_LIMIT=1'
+            - '# Install dependencies'
+            - cd 4-e2e
+            - pip install -r requirements.txt
+            - pip install flask_limiter
+            - cd ..
+            - cd 8-performance-testing
+            - pip install locust
+            - '# Start Flask app in background'
+            - 'python -c "import sys; sys.path.insert(0, ''../4-e2e''); from app import app; app.run()" > flask.log 2>&1 &'
+            - APP_PID=$!
+            - '# wait until app is ready - running state'
+            - 'until curl -s http://127.0.0.1:5000/health; do sleep 1; done'
+            - '# Run Locust (this will block until finished)'
+            - 'locust -f locustfile.py --host=http://127.0.0.1:5000 --headless -u 10 -r 2 --run-time 30s'
+            - '# Kill Flask app after test'
+            - kill $APP_PID
     run:
       when: 'false'
   - name: "\U0001F6E1️Security Checks"
-    dependencies: []
+    dependencies:
+      - Performance tests
+      - "\U0001F4E6 Setup Dependencies"
     task:
       jobs:
-        - name: "\U0001F6E1️ Bandit scan"
+        - name: 'Run tests '
           commands:
-            - echo "Running Bandit security scan…"
-            - 'export PATH="$HOME/.local/bin:$PATH"'
-            - mkdir -p .pip_cache
-            - cache restore
-            - pip install --user bandit
-            - bandit -r . -ll
+            - '# Install dependencies'
+            - cd 4-e2e
+            - pip install -r requirements.txt
+            - pip install flask_limiter
+            - cd ..
+            - 'cd 9-security-testing '
+            - '# Start Flask app in background'
+            - 'python -c "import sys; sys.path.insert(0, ''../4-e2e''); from app import app; app.run()" > flask.log 2>&1 &'
+            - APP_PID=$!
+            - '# wait until app is ready - running state'
+            - 'until curl -s http://127.0.0.1:5000/health; do sleep 1; done'
+            - python -m pytest test_security.py -v
+            - '# Kill Flask app after test'
+            - kill $APP_PID
     run:
       when: 'false'
+  - name: Coverage
+    dependencies:
+      - "\U0001F4E6 Setup Dependencies"
+    task:
+      jobs:
+        - name: Check coverage
+          commands:
+            - cd 7-test-coverage
+            - pip install coverage
+            - 'coverage run -m pytest test_calculator.py -v '
+            - coverage report -m
+  - name: Test Report
+    dependencies:
+      - "\U0001F4E6 Setup Dependencies"
+    task:
+      jobs:
+        - name: Create report
+          commands:
+            - cd 5-test-reports
+            - pip install -r requirements.txt
+            - pytest --junitxml=report.xml
+            - '[[ -f report.xml ]] && test-results publish report.xml'
 after_pipeline:
   task:
     jobs:
