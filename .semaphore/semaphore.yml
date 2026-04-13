@@ -13,7 +13,9 @@ fail_fast:
 global_job_config:
   prologue:
     commands:
+      - sem-version python 3.12
       - checkout
+      - mkdir -p .pip_cache
 blocks:
   - name: "\U0001F4E6 Setup Dependencies"
     dependencies: []
