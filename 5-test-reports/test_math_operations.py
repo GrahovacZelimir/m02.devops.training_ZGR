@@ -27,7 +27,7 @@ class TestMathOperations(unittest.TestCase):
 
     def test_addition_fail(self):
         # Intentionally failing: 2 + 3 should be 5, not 6
-        self.assertEqual(add(2, 3), 6)
+        self.assertEqual(add(2, 3), 5)
 
     def test_subtraction(self):
         # Expected to pass: 10 - 5 = 5
